@@ -53,7 +53,7 @@ select_or_values
  : K_SELECT  ( K_DISTINCT | K_ALL )? (top_keyword)? select_List_Item ( ',' select_List_Item  )*
    ( K_FROM ( table_List_Item ( ',' table_List_Item )* | join_clause ) )?
    ( K_WHERE expr )?
-   ( K_SKYLINE K_OF exprSkyline )?
+   ( K_SKYLINE K_OF exprSkyline (K_SAMPLE K_BY exprSkylineSample)? )?
  ;
 
 type_name : name+ ( '(' signed_number ')' | '(' signed_number ',' signed_number ')' )?
@@ -117,6 +117,12 @@ exprSkyline
 
  ;
 
+exprSkylineSample
+ : exprSkylineSample ',' exprSkylineSample																#exprSampleAnd   
+ | ('(' column_term ')')																				#preferenceSampleOne
+ | ('(' column_term (',' column_term)* ')')																#preferenceSampleMultiple
+
+ ;
 
  exprCategory
 	: literal_value																						#opLiteral
@@ -253,6 +259,7 @@ keyword
  | K_MORE
  | K_IMPORTANT
  | K_THAN
+ | K_SAMPLE
  ;
 
 
@@ -370,6 +377,7 @@ K_BESTRANK : B E S T '_' R A N K;
 K_MORE: M O R E;
 K_IMPORTANT: I M P O R T A N T;
 K_THAN: T H A N;
+K_SAMPLE: S A M P L E;
 
 
 
