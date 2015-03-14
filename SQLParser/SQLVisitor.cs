@@ -543,6 +543,85 @@ namespace prefSQL.SQLParser
         }
 
         /// <summary>
+        /// Combines multiple subspace skylines
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        public override PrefSQLModel VisitExprSampleAnd(SQLParser.ExprSampleAndContext context)
+        {
+            //And was used --> visit left and right node
+            PrefSQLModel left = Visit(context.exprSkylineSample(0));
+            PrefSQLModel right = Visit(context.exprSkylineSample(1));
+
+            //Add the columns to the preference model
+            PrefSQLModel pref = new PrefSQLModel();
+            ISet<SubspaceAttributeModel> newSet = new HashSet<SubspaceAttributeModel>();
+            foreach (var row in left.SkylineSubspace)
+            {
+                pref.SkylineSubspace.Add(row);
+            }
+            foreach (var row in right.SkylineSubspace)
+            {
+                pref.SkylineSubspace.Add(row);
+            }
+         
+            pref.Tables = tables;
+            pref.HasTop = hasTOPClause;
+            pref.NumberOfRecords = numberOfRecords;
+            pref.HasSkyline = true;
+            pref.WithIncomparable = withIncomparable;
+            model = pref;
+            return pref;
+        }
+
+        public override PrefSQLModel VisitPreferenceSampleOne(SQLParser.PreferenceSampleOneContext context)
+        {
+            PrefSQLModel pref = new PrefSQLModel();
+            string strColumnName = "";
+            string strFullColumnName = "";
+            string strTable = "";
+
+            //Separate Column and Table
+            strColumnName = getColumnName(context.GetChild(1));
+            strTable = getTableName(context.GetChild(1));
+            strFullColumnName = strTable + "." + strColumnName;
+
+            //Add the preference to the list               
+            ISet<SubspaceAttributeModel> newSet=new HashSet<SubspaceAttributeModel>();
+            newSet.Add(new SubspaceAttributeModel(strFullColumnName, strColumnName));
+            pref.SkylineSubspace.Add(newSet);
+            model = pref;
+            return pref;
+        }
+
+        public override PrefSQLModel VisitPreferenceSampleMultiple(SQLParser.PreferenceSampleMultipleContext context)
+        {
+            PrefSQLModel pref = new PrefSQLModel();
+            string strColumnName = "";
+            string strFullColumnName = "";
+            string strTable = "";
+            var subspaceChildrenCounter = 1;
+
+            ISet<SubspaceAttributeModel> newSet = new HashSet<SubspaceAttributeModel>();
+            //Separate Column and Table
+            while (subspaceChildrenCounter < context.children.Count)
+            {
+                strColumnName = getColumnName(context.GetChild(subspaceChildrenCounter));
+                strTable = getTableName(context.GetChild(subspaceChildrenCounter));
+                strFullColumnName = strTable + "." + strColumnName;
+
+                //Add the preference to the list             
+                newSet.Add(new SubspaceAttributeModel(strFullColumnName, strColumnName));               
+
+                subspaceChildrenCounter += 2;
+            }
+            pref.SkylineSubspace.Add(newSet);
+
+            model = pref;
+            return pref;
+        }
+
+        /// <summary>
         /// Returns the column name from the parse tree object
         /// </summary>
         /// <param name="tree"></param>

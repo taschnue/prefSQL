@@ -12,6 +12,7 @@ namespace prefSQL.SQLParser.Models
         private bool _hasTOP = false;                                                   //if the query has the TOP Keyword
         private int _numberOfRecords = 0;                                               //Number of records that should be returned (0 = all)
         private List<AttributeModel> _skyline = new List<AttributeModel>();             //skyline attributes
+        private ICollection<ICollection<SubspaceAttributeModel>> _skylineSubspace = new HashSet<ICollection<SubspaceAttributeModel>>();      //skyline subspaces
         private List<OrderByModel> _orderBy = new List<OrderByModel>();                 //the category order by and the calculated sql
         private Dictionary<string, string> _tables = new Dictionary<string, string>();  //the tablename and its alias
         private bool _hasSkyline = false;                                               //if the query needs a skyline clause
@@ -58,6 +59,12 @@ namespace prefSQL.SQLParser.Models
         {
             set { _skyline = value; }
             get { return _skyline; }
+        }
+
+        public ICollection<ICollection<SubspaceAttributeModel>> SkylineSubspace
+        {
+            set { _skylineSubspace = value; }
+            get { return _skylineSubspace; }
         }
 
         public List<OrderByModel> OrderBy
