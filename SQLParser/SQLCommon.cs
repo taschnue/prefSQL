@@ -10,10 +10,10 @@ using prefSQL.SQLParser.Models;
 using System.Diagnostics;
 using System.Data;
 using prefSQL.SQLSkyline;
+using System.Text.RegularExpressions;
 
 namespace prefSQL.SQLParser
 {
-
     /// <summary>
     /// Entry point of the library for parsing a PREFERENCE SQL to an ANSI-SQL Statement
     /// </summary>
@@ -440,8 +440,71 @@ namespace prefSQL.SQLParser
             return strSQL;
         }
 
+        public SkylineSamplingModel GetSkylineSamplingModelFromPreferenceSql(string preferenceSql)
+        {
+            if (SkylineType.GetType() != typeof(SkylineBNL))
+            {
+                throw new Exception(
+                    "Not yet implemented for other SkylineStrategies than SkylineBNL. Please set SQLCommon#SkylineType to 'new SkylineBNL()'.");
+            }
 
+            var ansiSql = parsePreferenceSQL(preferenceSql);
 
+            string strQuery = "";
+            string strOperators = "";
+            int numberOfRecords = 0;
+            string[] parameter = null;
+
+            int iPosStart = ansiSql.IndexOf("'");
+            string strtmp = ansiSql.Substring(iPosStart);
+            parameter = Regex.Split(strtmp, ",(?=(?:[^']*'[^']*')*[^']*$)");
+
+            strQuery = parameter[0].Trim();
+            strOperators = parameter[1].Trim();
+            numberOfRecords = int.Parse(parameter[2].Trim());
+            strQuery = strQuery.Replace("''", "'").Trim('\'');
+            strOperators = strOperators.Replace("''", "'").Trim('\'');
+
+            string[] operators = strOperators.Split(';');
+
+            var allAttributes = Regex.Match(strQuery, "(SELECT )(.*)( FROM.*$)",
+                RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            var preString = allAttributes.Groups[1].ToString();
+            string[] attributes = allAttributes.Groups[2].ToString().Split(',');
+            var postString = allAttributes.Groups[3].ToString();
+
+            const string randomSubsetsCountDimensionPattern =
+                "SAMPLE BY RANDOM_SUBSETS COUNT ([1-9][0-9]*) DIMENSION ([1-9][0-9]*)";
+
+            var m = Regex.Match(preferenceSql, randomSubsetsCountDimensionPattern,
+                RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+            if (!m.Success)
+            {
+                throw new Exception(
+                    "No 'SAMPLE BY RANDOM_SUBSETS COUNT x DIMENSION y' found. If you do not want to use the Skyline Sampling heuristics, please consider calling SQLCommon#parsePreferenceSQL resp. SQLCommon#parseAndExecutePrefSQL instead.");
+            }
+
+            var randomSubsetsCount = int.Parse(m.Groups[1].ToString());
+            var randomSubsetsDimension = int.Parse(m.Groups[2].ToString());
+            var skylineSamplingModelReturn = new SkylineSamplingModel(randomSubsetsCount, randomSubsetsDimension,
+                preString.Trim(), postString.Trim());
+
+            foreach (var op in operators)
+            {
+                skylineSamplingModelReturn.SkylineOperators.Add(op.Trim());
+            }
+
+            foreach (var attribute in attributes)
+            {
+                if (attribute.Contains("SkylineAttribute"))
+                {
+                    skylineSamplingModelReturn.SkylineAttributes.Add(attribute.Trim());
+                }                
+            }
+
+            return skylineSamplingModelReturn;
+        }
     }
 }
 
